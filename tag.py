@@ -1,3 +1,5 @@
+import json
+import os
 import numpy as np
 
 from argparse import ArgumentParser
@@ -9,16 +11,24 @@ import clipgrams
 def main():
     # Args
     parser = ArgumentParser()
-    parser.add_argument('--textfile', type=str)
     parser.add_argument('--index_dir', type=str)
     parser.add_argument('--img', type=str, default=None)
-    parser.add_argument('--topk', type=int, default=10)
+    parser.add_argument('--knn', type=int, default=10)
     parser.add_argument('--clip_model', type=str, default='ViT-B/16')
     parser.add_argument('--device', type=str, default='cuda:0')
+    parser.add_argument('--lower', type=bool, default=True)
     args = parser.parse_args()
 
+    # Load index args and add to current args
+    fname = os.path.join(args.index_dir, 'args.txt')
+    with open(fname, 'r') as f:
+        index_args = json.load(f)
+        for key in list(index_args.keys()):
+            if key not in args.__dict__.keys():
+                args.__dict__[key] = index_args[key]
+
     # Load list
-    text = clipgrams.load_text(args)
+    text = clipgrams.TextDataset(folder=args.text_dir, args=args).data
 
     # Load index
     index = clipgrams.load_index(args)
@@ -31,7 +41,7 @@ def main():
     img, xq = clipgrams.encode_single_image(args, net, preprocess)
     
     # Search!
-    D, I = index.search(xq, args.topk) 
+    D, I = index.search(xq, args.knn) 
 
     # Display result
     print("\nTop predictions:\n")

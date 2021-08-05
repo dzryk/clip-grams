@@ -4,3 +4,4 @@ ftfy
 torch
 torchvision
 autofaiss
+nltk
