@@ -6,6 +6,7 @@ import numpy as np
 import faiss
 import requests
 import io
+import PIL
 
 from CLIP import clip
 from nltk.tokenize import wordpunct_tokenize
@@ -13,6 +14,7 @@ from pathlib import Path
 from tqdm import tqdm
 from PIL import Image
 from torch.utils.data import DataLoader
+from torchvision import transforms as T
 
 
 class TextDataset(torch.utils.data.Dataset):
@@ -80,29 +82,61 @@ class TextDataset(torch.utils.data.Dataset):
         return len(self.data)
 
 
-def load_index(args):
-    index = faiss.read_index(glob.glob(f"{args.index_dir}/*.index")[0])
-    return index
+def dl_collate_fn(batch):
+    return torch.stack([row[0] for row in batch]), [row[1] for row in batch]
 
 
-def encode_single_image(args, net, preprocess):
-    img = Image.open(fetch(args.img))
-    mat = preprocess(img).unsqueeze(0).to(args.device)
-    xq = net.encode_image(mat)
-    xq /= xq.norm(dim=-1, keepdim=True)
-    xq = xq.cpu().numpy().astype('float32')
-    return img, xq
+class ImageDataset(torch.utils.data.Dataset):
+    def __init__(self,
+                 folder: str,
+                 image_size=224):
+        super().__init__()
+        path = Path(folder)
 
+        image_files = sorted([
+            *path.glob('**/*.png'), *path.glob('**/*.jpg'),
+            *path.glob('**/*.jpeg'), *path.glob('**/*.bmp')
+        ])
 
-def fetch(url_or_path):
-    if str(url_or_path).startswith('http://') or str(url_or_path).startswith('https://'):
-        r = requests.get(url_or_path)
-        r.raise_for_status()
-        fd = io.BytesIO()
-        fd.write(r.content)
-        fd.seek(0)
-        return fd
-    return open(url_or_path, 'rb')
+        self.image_files = {image_file.stem: image_file for image_file in image_files}
+        self.keys = list(self.image_files.keys())
+        self.image_transform = T.Compose([
+            T.Resize(image_size, interpolation=T.InterpolationMode.BICUBIC),
+            T.CenterCrop(image_size),
+            T.Lambda(self.fix_img),
+            T.ToTensor(),
+            T.Normalize((0.48145466, 0.4578275, 0.40821073), (0.26862954, 0.26130258, 0.27577711))
+        ])
+
+    def __len__(self):
+        return len(self.keys)
+
+    def fix_img(self, img):
+        return img.convert('RGB') if img.mode != 'RGB' else img
+
+    def sequential_sample(self, ind):
+        if ind >= self.__len__() - 1:
+            return self.__getitem__(0)
+        return self.__getitem__(ind + 1)
+
+    def skip_sample(self, ind):
+        if self.shuffle:
+            return self.random_sample()
+        return self.sequential_sample(ind=ind)
+
+    def __getitem__(self, ind):
+        key = self.keys[ind]
+        image_file = self.image_files[key]
+        knn_file = image_file.with_suffix('.knn')
+
+        try:
+            image_tensor = self.image_transform(PIL.Image.open(image_file))
+        except (PIL.UnidentifiedImageError, OSError) as corrupt_image_exceptions:
+            print(f"An exception occurred trying to load file {image_file}.")
+            print(f"Skipping index {ind}")
+            return self.skip_sample(ind)
+
+        return image_tensor, knn_file
 
 
 def encode(args, net):
@@ -120,3 +154,25 @@ def encode(args, net):
         text_features /= text_features.norm(dim=-1, keepdim=True)
         text_embeddings.append(text_features.cpu().numpy())
     return np.concatenate(text_embeddings)
+
+
+def tagger(args, net):
+    text = TextDataset(folder=args.text_dir, args=args).data
+    index = faiss.read_index(glob.glob(f"{args.index_dir}/*.index")[0])
+    dataset = ImageDataset(folder=args.image_dir)
+    data = DataLoader(dataset,
+                      batch_size=args.batch_size,
+                      shuffle=False,
+                      num_workers=args.num_prepro_workers,
+                      pin_memory=True,
+                      collate_fn=dl_collate_fn,
+                      prefetch_factor=2)
+    print('Tagging images...')
+    for imgs, paths in tqdm(data):
+        xq = net.encode_image(imgs.to(args.device))
+        xq /= xq.norm(dim=-1, keepdim=True)
+        xq = xq.cpu().numpy().astype('float32')
+        indices = index.search(xq, args.knn)[1]
+        for idx in range(len(xq)):
+            result = ''.join(f'{text[i]}\n' for i in indices[idx])
+            paths[idx].write_text(result)
