@@ -9,7 +9,7 @@ We make use of [autofaiss](https://github.com/criteo/autofaiss) to automatically
 
 ## Quickstart
 
-A colab will be available soon that illustrates the key functions on a small collection of images and text.
+A [colab](https://colab.research.google.com/drive/19e7kbE9s4voya6s668vl5eafpIZh-5BC?usp=sharing) is available that illustrates the key functions on a small collection of images and text.
 
 ## Getting started
 
