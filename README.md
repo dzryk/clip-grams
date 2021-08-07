@@ -31,7 +31,9 @@ There are two main functions. Suppose we have a folder with text files from whic
 python3 index.py --text_dir=[path to text folder] --index_dir=[folder to store index] --use_line=true
 ```
 
-The `--use_line` argument indicates that each line from each text file is considered an entry. We can also pass arguments to include unigrams, bigrams and trigrams. The `--topk` argument sets an upper bound on the number of n-gram entries. The `--filter` argument will only include n-grams that occur at least that many times in the corpus. A prefix can be passed for CLIP encoding using the `--prefix` argument. Several arguments are also directly passed to autofaiss for index construction. See `index.py` for full list of arguments.
+The `--use_line` argument indicates that each line from each text file is considered an entry. We can also pass arguments to include unigrams, bigrams and trigrams. The `--topk` argument sets an upper bound on the number of n-gram entries. The `--filter` argument will only include n-grams that occur at least that many times in the corpus. A prefix can be passed for CLIP encoding using the `--prefix` argument. The `--chunk_size` argument specifies approximately how many entries each npy file of CLIP embeddings will have. Several arguments are also directly passed to autofaiss for index construction. See `index.py` for full list of arguments.
+
+If you've already created an index and want to create another without having to re-compute npy files, don't pass anything to `--text_dir`. It will immediately skip to computing a new index.
 
 Once an index is created, we can use it to tag all images that occur in a directory:
 
