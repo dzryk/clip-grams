@@ -1,4 +1,5 @@
 import collections
+import os
 import glob
 import nltk
 import torch
@@ -149,12 +150,26 @@ def encode(args, net):
                       pin_memory=True,
                       prefetch_factor=2)
     print('Encoding with CLIP...')
+    batches_seen = 0
+    chunks_count = 0
+    batches_per_chunk = args.chunk_size // args.batch_size
     for item in tqdm(data):
         text_features = net.encode_text(item.to(args.device))
         text_features /= text_features.norm(dim=-1, keepdim=True)
-        text_embeddings.append(text_features.cpu().numpy())
-    return np.concatenate(text_embeddings)
-
+        text_embeddings.append(text_features.cpu().numpy().astype('float32'))
+        batches_seen += 1
+        if batches_seen % batches_per_chunk == 0:
+            emb = np.concatenate(text_embeddings)
+            idx = str(chunks_count).zfill(5)
+            fname = os.path.join(args.index_dir, f'emb{idx}.npy')
+            np.save(fname, emb)
+            chunks_count += 1
+            text_embeddings = []
+    emb = np.concatenate(text_embeddings)
+    idx = str(chunks_count).zfill(5)
+    fname = os.path.join(args.index_dir, f'emb{idx}.npy')
+    np.save(fname, emb)
+    
 
 def tagger(args, net):
     text = TextDataset(folder=args.text_dir, args=args).data
