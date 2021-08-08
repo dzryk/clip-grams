@@ -25,7 +25,7 @@ def main():
     parser.add_argument('--use_unigrams', type=bool, default=False)
     parser.add_argument('--use_bigrams', type=bool, default=False)
     parser.add_argument('--use_trigrams', type=bool, default=False)
-    parser.add_argument('--topk', type=int, default=10000)
+    parser.add_argument('--topk_ngrams', type=int, default=10000)
     parser.add_argument('--filter', type=int, default=3)
     parser.add_argument('--metric_type', type=str, default='ip')
     parser.add_argument('--max_index_memory_usage', type=str, default='32GB')

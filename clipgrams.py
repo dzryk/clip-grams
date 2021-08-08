@@ -50,7 +50,7 @@ class TextDataset(torch.utils.data.Dataset):
                 data.extend(text)
     
         if args.use_unigrams:
-            unigrams = collections.Counter(tokens).most_common(args.topk)
+            unigrams = collections.Counter(tokens).most_common(args.topk_ngrams)
             unigrams = [t[0] for t in unigrams]
             data.extend(unigrams)
      
@@ -59,7 +59,7 @@ class TextDataset(torch.utils.data.Dataset):
             finder = nltk.collocations.BigramCollocationFinder.from_words(tokens)
             if args.filter:
                 finder.apply_freq_filter(args.filter)
-            bigrams = finder.nbest(bigram_measures.pmi, args.topk)
+            bigrams = finder.nbest(bigram_measures.pmi, args.topk_ngrams)
             bigrams = [' '.join(g) for g in bigrams]
             data.extend(bigrams)
 
@@ -68,7 +68,7 @@ class TextDataset(torch.utils.data.Dataset):
             finder = nltk.collocations.TrigramCollocationFinder.from_words(tokens)
             if args.filter:
                 finder.apply_freq_filter(args.filter)
-            trigrams = finder.nbest(trigram_measures.pmi, args.topk)
+            trigrams = finder.nbest(trigram_measures.pmi, args.topk_ngrams)
             trigrams = [' '.join(g) for g in trigrams]
             data.extend(trigrams)
         
@@ -138,6 +138,11 @@ class ImageDataset(torch.utils.data.Dataset):
             return self.skip_sample(ind)
 
         return image_tensor, knn_file
+
+
+def load_index(args):
+    index = faiss.read_index(glob.glob(f"{args.index_dir}/*.index")[0])
+    return index
 
 
 def encode(args, net):
