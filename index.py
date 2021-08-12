@@ -20,6 +20,7 @@ def main():
     parser.add_argument('--batch_size', type=int, default=256)
     parser.add_argument('--num_prepro_workers', type=int, default=8)
     parser.add_argument('--prefix', type=str, default='')
+    parser.add_argument('--save_entries', type=bool, default=False)
     parser.add_argument('--lower', type=bool, default=True)
     parser.add_argument('--use_line', type=bool, default=False)
     parser.add_argument('--use_unigrams', type=bool, default=False)

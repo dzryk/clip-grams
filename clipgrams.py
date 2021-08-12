@@ -77,7 +77,7 @@ class TextDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, idx):
         item = self.prefix + self.data[idx]
-        return self.tokenizer(item)
+        return self.tokenizer(item), self.data[idx]
     
     def __len__(self):
         return len(self.data)
@@ -147,6 +147,7 @@ def load_index(args):
 
 def encode(args, net):
     text_embeddings = []
+    entries = []
     dataset = TextDataset(folder=args.text_dir, args=args)
     data = DataLoader(dataset,
                       batch_size=args.batch_size,
@@ -158,7 +159,7 @@ def encode(args, net):
     batches_seen = 0
     chunks_count = 0
     batches_per_chunk = args.chunk_size // args.batch_size
-    for item in tqdm(data):
+    for item, entry in tqdm(data):
         text_features = net.encode_text(item.to(args.device))
         text_features /= text_features.norm(dim=-1, keepdim=True)
         text_embeddings.append(text_features.cpu().numpy().astype('float32'))
@@ -170,14 +171,30 @@ def encode(args, net):
             np.save(fname, emb)
             chunks_count += 1
             text_embeddings = []
+        if args.save_entries:
+            entries.extend(entry)
     emb = np.concatenate(text_embeddings)
     idx = str(chunks_count).zfill(5)
     fname = os.path.join(args.index_dir, f'emb{idx}.npy')
     np.save(fname, emb)
-    
+
+    # Store entries if applicable
+    if args.save_entries:
+        print('Saving entries...')
+        fname = os.path.join(args.index_dir, 'entries.txt')
+        with open(fname, 'w') as f:
+            for line in entries:
+                f.write(f'{line}\n')
+
 
 def tagger(args, net):
-    text = TextDataset(folder=args.text_dir, args=args).data
+    if args.load_entries:
+        text = []
+        fname = os.path.join(args.index_dir, 'entries.txt')
+        with open(fname, 'r') as f:
+            text.extend([line.strip() for line in f])
+    else:
+        text = TextDataset(folder=args.text_dir, args=args).data
     index = faiss.read_index(glob.glob(f"{args.index_dir}/*.index")[0])
     dataset = ImageDataset(folder=args.image_dir)
     data = DataLoader(dataset,
