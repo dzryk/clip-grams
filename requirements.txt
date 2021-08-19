@@ -5,3 +5,4 @@ torch
 torchvision
 autofaiss
 nltk
+webdataset
