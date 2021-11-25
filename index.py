@@ -46,7 +46,7 @@ def main():
             json.dump(args.__dict__, f, indent=2)
 
     # Compute index
-    build_index(embeddings_path=args.index_dir,
+    build_index(embeddings=args.index_dir,
                index_path=args.index_dir+"/knn.index",
                index_infos_path=args.index_dir+"/knn_infos.json",
                metric_type=args.metric_type,
