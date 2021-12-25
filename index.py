@@ -3,7 +3,7 @@ import os
 import numpy as np
 
 from argparse import ArgumentParser
-from autofaiss.external.quantize import Quantizer
+from autofaiss import build_index
 from CLIP import clip
 
 import clipgrams
@@ -46,13 +46,13 @@ def main():
             json.dump(args.__dict__, f, indent=2)
 
     # Compute index
-    quantizer = Quantizer()
-    quantizer.quantize(embeddings_path=args.index_dir,
-                       output_path=args.index_dir,
-                       metric_type=args.metric_type,
-                       max_index_memory_usage=args.max_index_memory_usage,
-                       current_memory_available=args.current_memory_available,
-                       max_index_query_time_ms=args.max_index_query_time_ms)
+    build_index(embeddings=args.index_dir,
+               index_path=args.index_dir+"/knn.index",
+               index_infos_path=args.index_dir+"/knn_infos.json",
+               metric_type=args.metric_type,
+               max_index_memory_usage=args.max_index_memory_usage,
+               current_memory_available=args.current_memory_available,
+               max_index_query_time_ms=args.max_index_query_time_ms)
 
 
 if __name__ == '__main__':
